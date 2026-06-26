@@ -1,21 +1,30 @@
 from django.db import models
 from django.contrib.auth.models import User
 from django.utils import timezone
+import random
+import string
+
+
+CATS = [
+    ('conference', 'Conference'),
+    ('workshop', 'Workshop'),
+    ('webinar', 'Webinar'),
+    ('meetup', 'Meetup'),
+    ('concert', 'Concert'),
+    ('other', 'Other'),
+]
+
+REG_STATUS = [
+    ('confirmed', 'Confirmed'),
+    ('cancelled', 'Cancelled'),
+    ('waitlisted', 'Waitlisted'),
+]
 
 
 class Event(models.Model):
-    CATEGORY_CHOICES = [
-        ('conference', 'Conference'),
-        ('workshop', 'Workshop'),
-        ('webinar', 'Webinar'),
-        ('meetup', 'Meetup'),
-        ('concert', 'Concert'),
-        ('other', 'Other'),
-    ]
-
     title = models.CharField(max_length=200)
     description = models.TextField()
-    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES, default='other')
+    category = models.CharField(max_length=50, choices=CATS, default='other')
     location = models.CharField(max_length=300)
     date = models.DateTimeField()
     end_date = models.DateTimeField(null=True, blank=True)
@@ -35,8 +44,8 @@ class Event(models.Model):
 
     @property
     def available_spots(self):
-        registered = self.registrations.filter(status='confirmed').count()
-        return self.capacity - registered
+        taken = self.registrations.filter(status='confirmed').count()
+        return self.capacity - taken
 
     @property
     def is_full(self):
@@ -48,15 +57,9 @@ class Event(models.Model):
 
 
 class Registration(models.Model):
-    STATUS_CHOICES = [
-        ('confirmed', 'Confirmed'),
-        ('cancelled', 'Cancelled'),
-        ('waitlisted', 'Waitlisted'),
-    ]
-
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='registrations')
     event = models.ForeignKey(Event, on_delete=models.CASCADE, related_name='registrations')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='confirmed')
+    status = models.CharField(max_length=20, choices=REG_STATUS, default='confirmed')
     registered_at = models.DateTimeField(auto_now_add=True)
     notes = models.TextField(blank=True)
     ticket_code = models.CharField(max_length=20, unique=True, blank=True)
@@ -70,8 +73,8 @@ class Registration(models.Model):
 
     def save(self, *args, **kwargs):
         if not self.ticket_code:
-            import random, string
-            self.ticket_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=10))
+            chars = string.ascii_uppercase + string.digits
+            self.ticket_code = ''.join(random.choices(chars, k=10))
         super().save(*args, **kwargs)
 
 
